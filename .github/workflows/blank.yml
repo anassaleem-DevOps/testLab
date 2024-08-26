@@ -50,8 +50,4 @@ jobs:
 
     - name: Deploy to production
       run: |
-        echo "Deploying to production..."
-        # Replace with your actual deployment commands or actions
-
-    - name: Notify team
-      run: echo "Deployment complete. Notifying team..."
+        echo "Deploying to production"

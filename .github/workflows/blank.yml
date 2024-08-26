@@ -1,0 +1,28 @@
+# .github/workflows/deploy.yml
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main  # Trigger deployment on push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production  # The environment that requires approval
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up environment
+      run: echo "Setting up environment..."
+
+    - name: Deploy to production
+      run: echo "Deploying to production..."
+      # Replace with your actual deployment commands or actions
+
+    - name: Notify team
+      run: echo "Notifying team..."

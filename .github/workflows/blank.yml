@@ -8,21 +8,50 @@ on:
       - main  # Trigger deployment on push to main branch
 
 jobs:
-  deploy:
+  install:
     runs-on: ubuntu-latest
-    environment:
-      name: production  # The environment that requires approval
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up environment
-      run: echo "Setting up environment..."
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+
+    - name: Install dependencies
+      run: |
+        echo "Deploying to production..."
+
+  build:
+    runs-on: ubuntu-latest
+    needs: install  # Ensure this job runs after the install job
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+
+    - name: Build project
+      run: |
+        echo "Deploying to production..."
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build  # Ensure this job runs after the build job
+    environment:
+      name: production  # Specify environment for deployment approval
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
 
     - name: Deploy to production
-      run: echo "Deploying to production..."
-      # Replace with your actual deployment commands or actions
+      run: |
+        echo "Deploying to production..."
+        # Replace with your actual deployment commands or actions
 
     - name: Notify team
-      run: echo "Notifying team..."
+      run: echo "Deployment complete. Notifying team..."

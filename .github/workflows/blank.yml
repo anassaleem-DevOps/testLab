@@ -1,23 +1,29 @@
-name: Manual Approval Workflow
+name: Manual Approval
 
 on:
   workflow_dispatch:
     inputs:
-      deploy:
-        description: 'Manually approve deployment'
+      approve:
+        description: 'Manual approval input'
         required: true
         type: boolean
 
 jobs:
-  deploy:
+  approval:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.deploy == 'true' }}
+    if: ${{ github.event.inputs.approve == 'true' }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Deploy code
+      - name: Check Approval
         run: |
-          echo "Deploying application"
+          echo "Checking if the specific user has approved..."
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+               | jq -r '.[] | select(.user.login == "SPECIFIED_USER") | .body' \
+               | grep -q "Approved"
+
+      - name: Deploy Application
+        run: |
+          echo "Deploying application..."
           # Add your deployment commands here

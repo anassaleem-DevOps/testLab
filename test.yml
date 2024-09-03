@@ -1,0 +1,52 @@
+name: Deploy to ECS
+
+on:
+  push:
+    branches:
+      - master
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Build Docker image
+      run: |
+        docker build -t my-app:$GITHUB_SHA .
+        docker tag my-app:$GITHUB_SHA 350170773950.dkr.ecr.us-east-1.amazonaws.com/nginx:latest
+
+    - name: Push Docker image to ECR
+      run: |
+        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin 350170773950.dkr.ecr.us-east-1.amazonaws.com
+        docker push 350170773950.dkr.ecr.us-east-1.amazonaws.com/nginx:latest
+
+    - name: Register new ECS Task Definition revision
+      id: register-task-def
+      run: |
+        TASK_DEF=$(aws ecs register-task-definition \
+          --cli-input-json file://ecs-task-definition.json \
+          --output json)
+        echo "::set-output name=task-definition-arn::$(echo $TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')"
+
+#    - name: Update ECS Service
+#      run: |
+#        aws ecs update-service --cluster nginx --service nginx --force-new-deployment
+        
+    - name: Blue/Green Deployment
+      env:
+        S3_KEY: "deployments/${GITHUB_SHA}.zip" 
+      run: |
+        aws deploy create-deployment \
+          --application-name AppECS-nginx-nginx \
+          --deployment-group-name DgpECS-nginx-nginx \
+          --revision '{"revisionType":"S3","s3Location":{"bucket":"codedeploystratesfy","key":"deployments/bundle.zip","bundleType":"zip"}}' \
+          --description "Deploying new version 01"

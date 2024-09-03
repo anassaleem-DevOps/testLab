@@ -1,0 +1,52 @@
+name: Deploy to ECS
+
+on:
+  push:
+    branches:
+      - main # Change this to your branch name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Build Docker image
+      run: |
+        docker build -t my-app:latest .
+        docker tag my-app:latest <aws_account_id>.dkr.ecr.<region>.amazonaws.com/my-app:latest
+
+    - name: Login to Amazon ECR
+      run: |
+        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin <aws_account_id>.dkr.ecr.<region>.amazonaws.com
+
+    - name: Push Docker image to ECR
+      run: |
+        docker push <aws_account_id>.dkr.ecr.<region>.amazonaws.com/my-app:latest
+
+    - name: Create deployment package
+      run: |
+        zip -r deployment-package.zip appspec.yml scripts/
+
+    - name: Upload deployment package to S3
+      run: |
+        aws s3 cp deployment-package.zip s3://my-app-deployment-bucket/deployments/deployment-package.zip
+
+    - name: Create a new CodeDeploy deployment
+      run: |
+        aws deploy create-deployment \
+          --application-name ${{ secrets.CODEDEPLOY_APPLICATION_NAME }} \
+          --deployment-group-name ${{ secrets.CODEDEPLOY_DEPLOYMENT_GROUP }} \
+          --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
+          --description "GitHub Actions Deployment" \
+          --file-exists-behavior OVERWRITE \
+          --s3-location bucket=my-app-deployment-bucket,key=deployments/deployment-package.zip
